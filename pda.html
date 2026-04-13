@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>智能上架 - PDA版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background: #1a3e4c;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1a3e4c 0%, #0f2c36 100%);
+            position: relative;
+        }
+
+        /* 顶部状态栏 */
+        .top-bar {
+            background: rgba(0,0,0,0.3);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .sync-dot.error {
+            background: #dc3545;
+        }
+
+        /* 原点位栏 */
+        .origin-bar {
+            background: rgba(0,0,0,0.3);
+            margin: 16px 20px 0 20px;
+            padding: 10px 16px;
+            border-radius: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .origin-bar span:first-child {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .origin-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffc107;
+            font-family: monospace;
+        }
+
+        .origin-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        /* 进度栏 */
+        .progress-bar {
+            background: rgba(0,0,0,0.3);
+            margin: 10px 20px;
+            padding: 10px 20px;
+            border-radius: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .progress-bar span:first-child {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .progress-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffc107;
+        }
+
+        /* 主内容 - 可点击区域 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .current-label {
+            font-size: 18px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 20px;
+        }
+
+        .current-location {
+            font-size: 72px;
+            font-weight: bold;
+            color: #ffc107;
+            background: rgba(0,0,0,0.3);
+            padding: 30px 50px;
+            border-radius: 80px;
+            font-family: monospace;
+            letter-spacing: 6px;
+        }
+
+        .remaining-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .complete-box {
+            text-align: center;
+        }
+
+        .complete-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .complete-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+
+        .complete-btn {
+            margin-top: 30px;
+            padding: 12px 30px;
+            background: #ffc107;
+            color: #333;
+            border: none;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* 底部提示 */
+        .bottom-tip {
+            text-align: center;
+            padding: 16px;
+            color: rgba(255,255,255,0.4);
+            font-size: 12px;
+        }
+
+        /* 弹窗 */
+        .modal-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 32px;
+            padding: 32px 24px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .modal-box h3 {
+            font-size: 24px;
+            color: #1a3e4c;
+            margin-bottom: 8px;
+        }
+
+        .modal-box p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .modal-box input {
+            width: 100%;
+            padding: 16px;
+            font-size: 20px;
+            text-align: center;
+            font-family: monospace;
+            border: 2px solid #ddd;
+            border-radius: 16px;
+            margin-bottom: 24px;
+        }
+
+        .modal-box input:focus {
+            outline: none;
+            border-color: #1e6f5c;
+        }
+
+        .modal-box button {
+            width: 100%;
+            padding: 14px;
+            background: #1e6f5c;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .modal-box button.secondary {
+            background: #6c757d;
+        }
+
+        .modal-box button.danger {
+            background: #dc3545;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 12px;
+            z-index: 1001;
+            display: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+    <script src="https://res.wx.qq.com/open/js/cloudbase/1.1.0/cloud.js"></script>
+</head>
+<body>
+
+<div class="loading" id="loading">⏳ 加载中...</div>
+
+<div class="app-container" id="appContainer">
+    <div class="top-bar">
+        <div class="sync-status">
+            <span class="sync-dot" id="syncDot"></span>
+            <span id="syncText">连接中...</span>
+        </div>
+        <span id="statsText">加载中...</span>
+    </div>
+
+    <div class="origin-bar">
+        <span>📍 原点位</span>
+        <span class="origin-value" id="originValue">未设置</span>
+        <button class="origin-btn" id="originBtn">设置</button>
+    </div>
+
+    <div class="progress-bar">
+        <span>📊 上架进度</span>
+        <span class="progress-value" id="progressValue">0 / 0</span>
+    </div>
+
+    <div class="main-content" id="mainContent">
+        <!-- 动态内容 -->
+    </div>
+
+    <div class="bottom-tip">
+        👆 点击上面区域 → 确认上架 → 自动跳转下一个
+    </div>
+</div>
+
+<!-- 原点位设置弹窗 -->
+<div id="originModal" class="modal-mask hidden">
+    <div class="modal-box">
+        <h3>📍 设置原点位</h3>
+        <p>输入您当前所在的库位码</p>
+        <input type="text" id="originInput" placeholder="例如: LSYW16" autocomplete="off">
+        <button id="confirmOriginBtn">确认设置</button>
+        <button id="clearOriginBtn" class="danger">清除原点位</button>
+        <button id="closeOriginBtn" class="secondary">取消</button>
+    </div>
+</div>
+
+<script>
+// ========== 配置区域 ==========
+const ENV_ID = "kucang-5gtw04vlb8f04c39";  // 替换成你的腾讯云开发环境ID
+// ============================
+
+let allLocations = [];      // 所有库位
+let originCode = null;      // 原点位
+let currentIdx = 0;         // 当前索引
+
+let app = null;
+let db = null;
+
+// 初始化云开发
+async function initCloud() {
+    showLoading(true);
+    try {
+        app = cloudbase.init({ env: ENV_ID });
+        await app.auth().signInAnonymously();
+        db = app.database();
+        updateSyncStatus(true, '已连接');
+        await loadData();
+    } catch(e) {
+        console.error(e);
+        updateSyncStatus(false, '连接失败');
+        loadLocalData();
+    }
+    showLoading(false);
+}
+
+// 加载数据
+async function loadData() {
+    try {
+        const res = await db.collection('locations').get();
+        allLocations = res.data.map(item => ({ code: item.code, priority: item.priority }));
+        allLocations.sort((a, b) => a.priority - b.priority);
+        saveLocalData();
+        updateStats();
+        updateSyncStatus(true, `已同步 ${allLocations.length} 个库位`);
+        
+        // 恢复设置
+        loadSettings();
+        refreshDisplay();
+    } catch(e) {
+        console.error(e);
+        loadLocalData();
+    }
+}
+
+// 本地存储
+function saveLocalData() {
+    localStorage.setItem('locations_data', JSON.stringify(allLocations));
+}
+
+function loadLocalData() {
+    const saved = localStorage.getItem('locations_data');
+    if (saved) {
+        allLocations = JSON.parse(saved);
+        updateStats();
+    }
+    loadSettings();
+    refreshDisplay();
+}
+
+// 保存/加载设置
+function saveSettings() {
+    localStorage.setItem('origin_code', originCode || '');
+    localStorage.setItem('current_idx', currentIdx);
+}
+
+function loadSettings() {
+    const savedOrigin = localStorage.getItem('origin_code');
+    if (savedOrigin && allLocations.find(l => l.code === savedOrigin)) {
+        originCode = savedOrigin;
+    } else {
+        originCode = null;
+    }
+    
+    const savedIdx = localStorage.getItem('current_idx');
+    if (savedIdx !== null) {
+        currentIdx = parseInt(savedIdx);
+    } else {
+        calculateStartIndex();
+    }
+    
+    // 边界检查
+    if (currentIdx > allLocations.length) currentIdx = allLocations.length;
+    if (currentIdx < 0) currentIdx = 0;
+    
+    updateOriginDisplay();
+}
+
+// 根据原点位计算起始索引
+function calculateStartIndex() {
+    if (originCode && allLocations.length > 0) {
+        const idx = allLocations.findIndex(l => l.code === originCode);
+        if (idx !== -1) {
+            currentIdx = idx + 1;  // 从原点位的下一个开始
+        } else {
+            currentIdx = 0;
+            originCode = null;
+        }
+    } else {
+        currentIdx = 0;
+    }
+    
+    if (currentIdx > allLocations.length) currentIdx = allLocations.length;
+    saveSettings();
+}
+
+// 确认上架（点击跳转）
+function confirmAndNext() {
+    if (allLocations.length === 0) {
+        alert('暂无库位数据，请联系管理员');
+        return;
+    }
+    
+    if (currentIdx >= allLocations.length) {
+        // 已完成，显示完成界面
+        refreshDisplay();
+        return;
+    }
+    
+    // 震动反馈
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    // 移动到下一个
+    currentIdx++;
+    saveSettings();
+    refreshDisplay();
+}
+
+// 刷新界面
+function refreshDisplay() {
+    const mainEl = document.getElementById('mainContent');
+    const progressEl = document.getElementById('progressValue');
+    
+    if (allLocations.length === 0) {
+        mainEl.innerHTML = `
+            <div style="text-align:center;">
+                <div style="font-size:24px;margin-bottom:16px;">⚠️</div>
+                <div style="font-size:18px;color:white;">暂无库位数据</div>
+                <div style="font-size:14px;color:rgba(255,255,255,0.6);margin-top:8px;">请联系管理员导入</div>
+            </div>
+        `;
+        progressEl.innerText = `0 / 0`;
+        return;
+    }
+    
+    const completed = currentIdx;
+    const remaining = allLocations.length - completed;
+    
+    progressEl.innerText = `${completed} / ${allLocations.length}`;
+    
+    if (completed >= allLocations.length) {
+        // 完成界面
+        mainEl.innerHTML = `
+            <div class="complete-box">
+                <div class="complete-icon">🎉</div>
+                <div class="complete-title">全部完成！</div>
+                <div class="remaining-info">已完成 ${allLocations.length} 个库位</div>
+                <button class="complete-btn" id="resetBtn">重新开始</button>
+            </div>
+        `;
+        document.getElementById('resetBtn')?.addEventListener('click', () => {
+            if (originCode) {
+                const idx = allLocations.findIndex(l => l.code === originCode);
+                currentIdx = idx !== -1 ? idx + 1 : 0;
+            } else {
+                currentIdx = 0;
+            }
+            saveSettings();
+            refreshDisplay();
+        });
+    } else {
+        // 显示当前推荐
+        const current = allLocations[currentIdx];
+        mainEl.innerHTML = `
+            <div class="current-label">🎯 推荐上架</div>
+            <div class="current-location">${escapeHtml(current.code)}</div>
+            <div class="remaining-info">优先级 ${current.priority} | 剩余 ${remaining} 个</div>
+        `;
+    }
+}
+
+// 设置原点位
+function openOriginModal() {
+    document.getElementById('originInput').value = '';
+    document.getElementById('originModal').classList.remove('hidden');
+}
+
+function closeOriginModal() {
+    document.getElementById('originModal').classList.add('hidden');
+}
+
+function setOrigin() {
+    const input = document.getElementById('originInput').value.trim().toUpperCase();
+    if (!input) {
+        alert('请输入库位码');
+        return;
+    }
+    
+    const exists = allLocations.find(l => l.code === input);
+    if (!exists) {
+        alert(`库位 "${input}" 不存在`);
+        return;
+    }
+    
+    originCode = input;
+    // 重新计算起始索引
+    const idx = allLocations.findIndex(l => l.code === originCode);
+    currentIdx = idx + 1;
+    if (currentIdx > allLocations.length) currentIdx = allLocations.length;
+    
+    saveSettings();
+    updateOriginDisplay();
+    refreshDisplay();
+    closeOriginModal();
+}
+
+function clearOrigin() {
+    originCode = null;
+    currentIdx = 0;
+    saveSettings();
+    updateOriginDisplay();
+    refreshDisplay();
+    closeOriginModal();
+}
+
+function updateOriginDisplay() {
+    const el = document.getElementById('originValue');
+    if (originCode) {
+        el.innerText = originCode;
+    } else {
+        el.innerText = '未设置(从第1个开始)';
+    }
+}
+
+// 工具函数
+function updateStats() {
+    document.getElementById('statsText').innerHTML = `📦 ${allLocations.length} 个库位`;
+}
+
+function updateSyncStatus(isOk, msg) {
+    const dot = document.getElementById('syncDot');
+    const text = document.getElementById('syncText');
+    if (isOk) {
+        dot.className = 'sync-dot';
+        text.innerText = msg;
+    } else {
+        dot.className = 'sync-dot error';
+        text.innerText = msg;
+    }
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;');
+}
+
+function showLoading(show) {
+    document.getElementById('loading').style.display = show ? 'flex' : 'none';
+}
+
+// 绑定事件
+function bindEvents() {
+    // 主内容区域点击
+    document.getElementById('mainContent').addEventListener('click', (e) => {
+        // 如果点击的是重置按钮，不触发跳转
+        if (e.target.id === 'resetBtn') return;
+        confirmAndNext();
+    });
+    
+    // 原点位按钮
+    document.getElementById('originBtn').addEventListener('click', openOriginModal);
+    document.getElementById('confirmOriginBtn').addEventListener('click', setOrigin);
+    document.getElementById('clearOriginBtn').addEventListener('click', clearOrigin);
+    document.getElementById('closeOriginBtn').addEventListener('click', closeOriginModal);
+    
+    // 点击弹窗背景关闭
+    document.getElementById('originModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('originModal')) {
+            closeOriginModal();
+        }
+    });
+}
+
+// 启动
+(async function() {
+    bindEvents();
+    await initCloud();
+})();
+</script>
+</body>
+</html>
